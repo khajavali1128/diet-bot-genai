@@ -1,51 +1,54 @@
-import csv
 from neo4j import GraphDatabase
+import pandas as pd
 
-# Establish connection to the Neo4j database
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USERNAME = "neo4j"
-NEO4J_PASSWORD = "12341234"
+# Load the CSV data
+file_path = 'Updated_Diets.csv'
+diet_data = pd.read_csv(file_path)
 
-def create_nodes_and_relationships(file_path):
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
+# Connect to Neo4j
+uri = "bolt://localhost:7687"  # Adjust if your Neo4j is running elsewhere
+username = "neo4j"
+password = "12341234"  # Replace with your Neo4j password
 
-    def create_data(tx, row):
-        # Create nodes and relationships based on CSV structure
-        query = """
-        MERGE (recipe:Recipe {name: $recipe_name})
-        SET recipe.cuisine = $cuisine_type,
-            recipe.protein = $protein,
-            recipe.carbs = $carbs,
-            recipe.fat = $fat,
-            recipe.calories = $calories,
-            recipe.skinny = $skinny,
-            recipe.healthy = $healthy,
-            recipe.overweight = $overweight,
-            recipe.cardiovascular = $cardiovascular
-        """
-        tx.run(query, 
-               diet_type=row['Diet_type'], 
-               recipe_name=row['Recipe_name'], 
-               cuisine_type=row['Cuisine_type'], 
-               protein=row['Protein(g)'], 
-               carbs=row['Carbs(g)'], 
-               fat=row['Fat(g)'], 
-               calories=row['Calories'],
-               skinny=row['Skinny'],
-               healthy=row['Healthy'],
-               overweight=row['Overweight'],
-               cardiovascular=row['Cardiovascular'])
+driver = GraphDatabase.driver(uri, auth=(username, password))
 
-    try:
-        with driver.session() as session:
-            with open(file_path, 'r') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    session.write_transaction(create_data, row)
+def create_graph(tx, diet_type, recipe_name, properties):
+    # Create or match DietType node and set its name
+    tx.run("""
+        MERGE (d:DietType {type: $diet_type})
+        SET d.name = $diet_type
+    """, diet_type=diet_type)
+    
+    # Create or match Recipe node and set its properties
+    tx.run("""
+        MERGE (r:Recipe {name: $recipe_name})
+        ON CREATE SET r += $properties
+    """, recipe_name=recipe_name, properties=properties)
+    
+    # Create or match the relationship
+    tx.run("""
+        MATCH (d:DietType {type: $diet_type})
+        MATCH (r:Recipe {name: $recipe_name})
+        MERGE (d)-[:HAS_RECIPE]->(r)
+    """, diet_type=diet_type, recipe_name=recipe_name)
 
-    finally:
-        driver.close()
+# Insert data into Neo4j
+with driver.session() as session:
+    for _, row in diet_data.iterrows():
+        diet_type = row["Diet_type"]
+        recipe_name = row["Recipe_name"]
+        properties = {
+            "Cuisine_type": row["Cuisine_type"],
+            "Protein(g)": row["Protein(g)"],
+            "Carbs(g)": row["Carbs(g)"],
+            "Fat(g)": row["Fat(g)"],
+            "Extraction_day": row["Extraction_day"],
+            "Calories": row["Calories"],
+            "Skinny": row["Skinny"],
+            "Healthy": row["Healthy"],
+            "Overweight": row["Overweight"],
+            "Cardiovascular": row["Cardiovascular"],
+        }
+        session.write_transaction(create_graph, diet_type, recipe_name, properties)
 
-# Path to your CSV file
-csv_file_path = 'Updated_Diets.csv'
-create_nodes_and_relationships(csv_file_path)
+print("Data successfully inserted into Neo4j!")
