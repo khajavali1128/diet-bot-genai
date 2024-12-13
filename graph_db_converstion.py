@@ -15,7 +15,7 @@ driver = GraphDatabase.driver(uri, auth=(username, password))
 def create_graph(tx, diet_type, recipe_name, properties):
     # Create or match DietType node and set its name
     tx.run("""
-        MERGE (d:DietType {type: $diet_type})
+        MERGE (d:DietType {type: $diet_type}) //Uniqueness
         SET d.name = $diet_type
     """, diet_type=diet_type)
     
