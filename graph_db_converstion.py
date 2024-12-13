@@ -2,7 +2,7 @@ from neo4j import GraphDatabase
 import pandas as pd
 
 # Load the CSV data
-file_path = 'Updated_Diets.csv'
+file_path = 'data/Updated_Diets.csv'
 diet_data = pd.read_csv(file_path)
 
 # Connect to Neo4j
@@ -12,25 +12,27 @@ password = "12341234"  # Replace with your Neo4j password
 
 driver = GraphDatabase.driver(uri, auth=(username, password))
 
+
 def create_graph(tx, diet_type, recipe_name, properties):
     # Create or match DietType node and set its name
     tx.run("""
         MERGE (d:DietType {type: $diet_type}) //Uniqueness
         SET d.name = $diet_type
     """, diet_type=diet_type)
-    
+
     # Create or match Recipe node and set its properties
     tx.run("""
         MERGE (r:Recipe {name: $recipe_name})
         ON CREATE SET r += $properties
     """, recipe_name=recipe_name, properties=properties)
-    
+
     # Create or match the relationship
     tx.run("""
         MATCH (d:DietType {type: $diet_type})
         MATCH (r:Recipe {name: $recipe_name})
         MERGE (d)-[:HAS_RECIPE]->(r)
     """, diet_type=diet_type, recipe_name=recipe_name)
+
 
 # Insert data into Neo4j
 with driver.session() as session:

@@ -1,10 +1,11 @@
 import pandas as pd
 
 # Reading CSV file for All Diets
-original = pd.read_csv("All_Diets.csv", index_col=0)
+original = pd.read_csv("data/All_Diets.csv", index_col=0)
 
 # Taking necessary columns into df
-df = pd.DataFrame(original, columns=['Recipe_name', 'Cuisine_type', 'Protein(g)', 'Carbs(g)', 'Fat(g)', 'Extraction_day'])
+df = pd.DataFrame(original,
+                  columns=['Recipe_name', 'Cuisine_type', 'Protein(g)', 'Carbs(g)', 'Fat(g)', 'Extraction_day'])
 
 # Convert object type columns to string type
 object_columns = df.select_dtypes(include='object').columns
@@ -12,6 +13,7 @@ df[object_columns] = df[object_columns].astype(pd.StringDtype())
 
 # The 4-4-9 system uses the average values of 4 kcal/g for protein, 4 kcal/g for carbohydrates, and 9 kcal/g for fat
 df['Calories'] = (df['Protein(g)'] * 4) + (df['Carbs(g)'] * 4) + (df['Fat(g)'] * 9)
+
 
 # Add Yes/No columns for suitability
 def suitability(row):
@@ -41,8 +43,10 @@ def suitability(row):
 
     return skinny, healthy, overweight, cardiovascular
 
+
 # Apply suitability logic to each row and create new columns
-df[['Suitable for Skinny', 'Suitable for Healthy', 'Suitable for Overweight', 'Suitable for Cardiovascular']] = df.apply(
+df[['Suitable for Skinny', 'Suitable for Healthy', 'Suitable for Overweight',
+    'Suitable for Cardiovascular']] = df.apply(
     lambda row: pd.Series(suitability(row)), axis=1
 )
 
